@@ -20,6 +20,22 @@ const UserSchema = mongoose.Schema({
   _id: {
     type: String,
     require: true
+  },
+  isCreated: {
+    type: Boolean,
+    require: true
+  },
+  acc: {
+    type: String,
+    require: false
+  },
+  contract: {
+    type: String,
+    require: false
+  },
+  userType: {
+    type: Number,
+    require: true
   }
 });
 

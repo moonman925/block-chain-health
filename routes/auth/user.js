@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const uuid = require("uuid");
 const User = require("../../models/user");
+const jwt = require("jsonwebtoken");
+const session = require("express-session");
+const cookieParser = require("cookie-parser");
+
 const mongoose = require("mongoose");
 mongoose.connect("mongodb://localhost:27017/health", { useNewUrlParser: true });
 const db = mongoose.connection;
@@ -10,6 +14,8 @@ db.once("open", function() {
   console.log("connected");
 });
 
+router.use(session({ secret: "lhb" }));
+router.use(cookieParser());
 let user = require("../../models/user");
 router.post("/register", (req, res) => {
   // res.send("test");
@@ -18,11 +24,13 @@ router.post("/register", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
   const password2 = req.body.password2;
+  const utype = req.body.userType;
 
   req.checkBody("name", "名字不允许为空").notEmpty();
   req.checkBody("phone", "手机号不允许为空").notEmpty();
   req.checkBody("username", "用户名不允许为空").notEmpty();
   req.checkBody("password", "密码不允许为空").notEmpty();
+  req.checkBody("userType", "注册类型不允许为空").notEmpty();
   req.checkBody("password2", "密码不一致").equals(req.body.password);
 
   let err = req.validationErrors();
@@ -35,6 +43,8 @@ router.post("/register", (req, res) => {
       phone: phone,
       username: username,
       password: password,
+      userType: utype,
+      isCreated: false, //默认未创建
       _id: uuid.v4()
     });
     newUser.save(err => {
@@ -42,7 +52,7 @@ router.post("/register", (req, res) => {
         res.json({ err: err });
         return;
       } else {
-        res.json({ msg: "success!" });
+        res.json(newUser);
       }
     });
   }
@@ -51,6 +61,7 @@ router.post("/register", (req, res) => {
 router.post("/login", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
+
   let query = { username: username };
   User.findOne(query, (err, user) => {
     if (err) {
@@ -62,7 +73,12 @@ router.post("/login", (req, res) => {
       return;
     }
     if (user.password === password) {
-      res.json({ user });
+      req.session.username = username;
+      req.session.password = password;
+      res.json({ msg: req.session.username });
+
+      // res.redirect('/logged');
+
       return;
     } else {
       res.json({ msg: "密码错误" });
@@ -72,7 +88,19 @@ router.post("/login", (req, res) => {
 });
 
 router.get("/logout", (req, res) => {
-  res.json({ msg: "logout!" });
+  if (req.session.username) {
+    req.session.destroy(err => {
+      if (err) res.negotiate(err);
+      res.json({ msg: "logout!" });
+    });
+  } else {
+    res.json({ msg: "log first" });
+  }
+});
+
+router.get("/logged", (req, res) => {
+  if (req.session.username) res.json({ msg: "logged!" });
+  else res.json({ msg: "pls log first" });
 });
 
 module.exports = router;
